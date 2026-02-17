@@ -1,9 +1,9 @@
 [project]
 name = "codeforms"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python library for creating, validating, and rendering web forms using Pydantic"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.9"
 license = "MIT"
 dependencies = [
     "pydantic[email]>=2.0",

@@ -34,7 +34,7 @@ class FormFieldBase(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     name: str
     label: Union[str, None]
-    field_type: FieldType
+    field_type: Union[FieldType, str]
     required: bool = False
     placeholder: Optional[str] = None
     default_value: Optional[Any] = None
@@ -61,6 +61,12 @@ class FormFieldBase(BaseModel):
             date: lambda v: v.isoformat()
         }
     }
+
+    @property
+    def field_type_value(self) -> str:
+        """Return the field_type as a plain string, whether it is a FieldType enum or str."""
+        ft = self.field_type
+        return ft.value if isinstance(ft, FieldType) else ft
 
     def export(self, output_format: str = 'html', **kwargs) -> str:
         """Método genérico para exportar el campo en diferentes formatos"""
@@ -255,21 +261,7 @@ class FieldGroup(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     title: str
     description: Optional[str] = None
-    fields: List[Union[
-        'TextField',
-        'EmailField', 
-        'NumberField',
-        'DateField',
-        'SelectField',
-        'RadioField',
-        'CheckboxField',
-        'CheckboxGroupField',
-        'FileField',
-        'HiddenField',
-        'UrlField',
-        'TextareaField',
-        'ListField'
-    ]]
+    fields: List[Any]
     css_classes: Optional[str] = None
     attributes: Dict[str, str] = Field(default_factory=dict)
     collapsible: bool = False  # Si el grupo puede colapsarse
@@ -282,6 +274,16 @@ class FieldGroup(BaseModel):
             date: lambda v: v.isoformat()
         }
     }
+
+    @model_validator(mode='before')
+    @classmethod
+    def resolve_group_fields(cls, data: Any) -> Any:
+        """Resolve field dicts to instances using the registry."""
+        if isinstance(data, dict) and 'fields' in data:
+            from codeforms.registry import resolve_content_item
+            data = data.copy()
+            data['fields'] = [resolve_content_item(item) for item in data['fields']]
+        return data
 
     @model_validator(mode='after')
     def validate_field_names_in_group(self) -> 'FieldGroup':

@@ -14,7 +14,7 @@ Or with [uv](https://docs.astral.sh/uv/):
 uv add codeforms
 ```
 
-Requires Python 3.12+.
+Requires Python 3.9+.
 
 ## Quick Start
 
@@ -245,6 +245,68 @@ print(result["errors"][0]["message"])  # "El campo name es requerido"
 ```
 
 See [`examples/i18n_usage.py`](examples/i18n_usage.py) for a full working example.
+
+## Custom Field Types
+
+You can create your own field types by subclassing `FormFieldBase` and registering them with `register_field_type()`. Custom fields integrate seamlessly with forms, JSON serialization, validation, and HTML export.
+
+### Defining a Custom Field
+
+```python
+from codeforms import FormFieldBase, register_field_type
+
+class PhoneField(FormFieldBase):
+    field_type: str = "phone"       # unique string identifier
+    country_code: str = "+1"
+
+class RatingField(FormFieldBase):
+    field_type: str = "rating"
+    min_rating: int = 1
+    max_rating: int = 5
+
+register_field_type(PhoneField)
+register_field_type(RatingField)
+```
+
+### Using Custom Fields in Forms
+
+```python
+from codeforms import Form, TextField
+
+form = Form(
+    name="feedback",
+    fields=[
+        TextField(name="name", label="Name", required=True),
+        PhoneField(name="phone", label="Phone", country_code="+54"),
+        RatingField(name="score", label="Score", max_rating=10),
+    ],
+)
+```
+
+### JSON Roundtrip
+
+Custom fields serialize and deserialize automatically (as long as the field type is registered before deserialization):
+
+```python
+import json
+
+json_str = form.to_json()
+restored = Form.loads(json_str)
+
+assert isinstance(restored.fields[1], PhoneField)
+assert restored.fields[1].country_code == "+54"
+```
+
+### Listing Registered Types
+
+```python
+from codeforms import get_registered_field_types
+
+for name, classes in sorted(get_registered_field_types().items()):
+    print(f"{name}: {[c.__name__ for c in classes]}")
+```
+
+See [`examples/custom_fields.py`](examples/custom_fields.py) for a full working example.
 
 ## License
 

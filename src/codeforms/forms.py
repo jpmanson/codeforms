@@ -7,19 +7,7 @@ from typing import Any
 class Form(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     name: str
-    content: List[Union[
-        TextField,
-        EmailField,
-        NumberField,
-        DateField,
-        SelectField,
-        RadioField,
-        CheckboxField,
-        CheckboxGroupField,
-        FileField,
-        HiddenField,
-        'FieldGroup'
-    ]]
+    content: List[Any]
     css_classes: Optional[str] = None
     version: int = 1
     attributes: Dict[str, str] = Field(default_factory=dict)
@@ -29,8 +17,9 @@ class Form(BaseModel):
     @classmethod
     def convert_fields_to_content(cls, data: Any) -> Any:
         """
-        Validador para mantener retrocompatibilidad.
-        Convierte automáticamente 'fields' a 'content' si está presente.
+        Validador para mantener retrocompatibilidad y resolver items del contenido.
+        Convierte automáticamente 'fields' a 'content' si está presente, y resuelve
+        cada item usando el registro de tipos de campo.
         """
         if isinstance(data, dict):
             # Si tiene 'fields' pero no 'content', convertir
@@ -41,10 +30,18 @@ class Form(BaseModel):
             elif 'fields' in data and 'content' in data:
                 data = data.copy()
                 data.pop('fields')  # Remover 'fields' redundante
+
+            # Resolver cada item del contenido usando el registry
+            if 'content' in data:
+                from codeforms.registry import resolve_content_item
+                data = data.copy() if data is not data else data
+                data['content'] = [
+                    resolve_content_item(item) for item in data['content']
+                ]
         return data
 
     @property
-    def fields(self) -> List[Union[TextField, EmailField, NumberField, DateField, SelectField, RadioField, CheckboxField, CheckboxGroupField, FileField, HiddenField]]:
+    def fields(self) -> List[FormFieldBase]:
         """
         Devuelve una lista plana de todos los campos del formulario,
         independientemente de si están en un grupo o no.

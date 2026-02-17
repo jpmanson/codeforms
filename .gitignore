@@ -14,7 +14,8 @@ todo
 CLAUDE.md
 .claude
 
-# Caches
+# Caches and temps
 .uv-cache
 .pytest_cache
 __pycache__/
+.tmp

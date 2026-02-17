@@ -28,3 +28,7 @@ from codeforms.i18n import (
     register_locale,
     get_messages,
 )
+from codeforms.registry import (
+    register_field_type,
+    get_registered_field_types,
+)

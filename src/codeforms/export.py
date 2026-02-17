@@ -205,14 +205,14 @@ def field_to_html(field: FormFieldBase, **kwargs) -> str:
     skip_label = ['hidden']
     
     label_html = ''
-    if field.field_type.value not in skip_label:
+    if field.field_type_value not in skip_label:
         label_class = "form-label" if is_bootstrap else ""
         label_html = f'<label class="{label_class}" for="{field.id}">{field.label}</label>'
     
     help_html = f'<small class="{help_text_class}">{field.help_text}</small>' if field.help_text else ""
 
     # Manejar campos SELECT de manera especial
-    if field.field_type.value == 'select':
+    if field.field_type_value == 'select':
         select_attrs = {
             "id": str(field.id),
             "name": field.name,
@@ -240,7 +240,7 @@ def field_to_html(field: FormFieldBase, **kwargs) -> str:
         input_html = f'<select {attrs_str}>{options_html}</select>'
     
     # Manejar campos RADIO de manera especial
-    elif field.field_type.value == 'radio':
+    elif field.field_type_value == 'radio':
         radio_html_parts = []
         if hasattr(field, 'options'):
             for option in field.options:
@@ -265,7 +265,7 @@ def field_to_html(field: FormFieldBase, **kwargs) -> str:
         input_html = '<div class="radio-group">' + ''.join(radio_html_parts) + '</div>'
     
     # Manejar campos CHECKBOX con opciones múltiples
-    elif field.field_type.value == 'checkbox' and hasattr(field, 'options'):
+    elif field.field_type_value == 'checkbox' and hasattr(field, 'options'):
         checkbox_html_parts = []
         for option in field.options:
             checkbox_attrs = {
@@ -293,7 +293,7 @@ def field_to_html(field: FormFieldBase, **kwargs) -> str:
         attributes = {
             "id": str(field.id),
             "name": field.name,
-            "type": field.field_type.value,
+            "type": field.field_type_value,
             "class": f"{base_input_class} {field.css_classes or ''}".strip(),
             "placeholder": field.placeholder or "",
         }
@@ -308,7 +308,7 @@ def field_to_html(field: FormFieldBase, **kwargs) -> str:
             attributes["value"] = str(field.default_value)
             
         # Para checkbox simple, manejar el atributo checked
-        if field.field_type.value == 'checkbox' and hasattr(field, 'checked') and field.checked:
+        if field.field_type_value == 'checkbox' and hasattr(field, 'checked') and field.checked:
             attributes["checked"] = "checked"
 
         # Agregar atributos personalizados
