@@ -246,6 +246,159 @@ print(result["errors"][0]["message"])  # "El campo name es requerido"
 
 See [`examples/i18n_usage.py`](examples/i18n_usage.py) for a full working example.
 
+## Dynamic Forms
+
+### Conditional Visibility
+
+Fields can be shown or hidden based on the value of other fields using `visible_when`. This is metadata that your frontend can use for dynamic UI, and the backend can respect during validation.
+
+```python
+from codeforms import Form, TextField, SelectField, SelectOption, VisibilityRule
+
+form = Form(
+    name="address",
+    fields=[
+        SelectField(
+            name="country",
+            label="Country",
+            required=True,
+            options=[
+                SelectOption(value="US", label="United States"),
+                SelectOption(value="AR", label="Argentina"),
+            ],
+        ),
+        TextField(
+            name="state",
+            label="State",
+            required=True,
+            visible_when=[
+                VisibilityRule(field="country", operator="equals", value="US"),
+            ],
+        ),
+        TextField(
+            name="province",
+            label="Province",
+            required=True,
+            visible_when=[
+                VisibilityRule(field="country", operator="equals", value="AR"),
+            ],
+        ),
+    ],
+)
+```
+
+Supported operators: `equals`, `not_equals`, `in`, `not_in`, `gt`, `lt`, `is_empty`, `is_not_empty`.
+
+#### Dynamic Validation
+
+Use `validate_form_data_dynamic()` to validate only the fields that are currently visible:
+
+```python
+from codeforms import validate_form_data_dynamic
+
+result = validate_form_data_dynamic(
+    form,
+    {"country": "US", "state": "California"},
+    respect_visibility=True,
+)
+print(result["success"])  # True — "province" is hidden, so not required
+```
+
+The legacy `validate_form_data()` function is unchanged and always validates all fields regardless of visibility.
+
+#### Checking Visible Fields
+
+```python
+visible = form.get_visible_fields({"country": "US"})
+print([f.name for f in visible])  # ["country", "state"]
+```
+
+See [`examples/conditional_visibility.py`](examples/conditional_visibility.py) for a full working example.
+
+### Dependent Options
+
+Use `DependentOptionsConfig` to define option sets that change based on another field's value:
+
+```python
+from codeforms import SelectField, SelectOption, DependentOptionsConfig
+
+city_field = SelectField(
+    name="city",
+    label="City",
+    options=[  # all possible options (for static HTML rendering)
+        SelectOption(value="nyc", label="New York City"),
+        SelectOption(value="bsas", label="Buenos Aires"),
+    ],
+    dependent_options=DependentOptionsConfig(
+        depends_on="country",
+        options_map={
+            "US": [SelectOption(value="nyc", label="New York City")],
+            "AR": [SelectOption(value="bsas", label="Buenos Aires")],
+        },
+    ),
+)
+```
+
+The `dependent_options` metadata serializes to JSON for your frontend to consume. See [`examples/dependent_options.py`](examples/dependent_options.py).
+
+## Multi-Step Wizard Forms
+
+Use `FormStep` to split a form into multiple steps. Each step contains its own fields and can be validated independently.
+
+```python
+from codeforms import Form, FormStep, TextField, EmailField, CheckboxField
+
+form = Form(
+    name="registration",
+    content=[
+        FormStep(
+            title="Personal Information",
+            description="Tell us about yourself",
+            content=[
+                TextField(name="name", label="Name", required=True),
+                EmailField(name="email", label="Email", required=True),
+            ],
+        ),
+        FormStep(
+            title="Confirmation",
+            content=[
+                CheckboxField(name="terms", label="I accept the terms", required=True),
+            ],
+            validation_mode="on_submit",
+        ),
+    ],
+)
+```
+
+### Step Validation
+
+```python
+# Validate a single step
+result = form.validate_step(0, {"name": "John", "email": "john@example.com"})
+print(result["success"])  # True
+
+# Validate all steps at once
+result = form.validate_all_steps({
+    "name": "John",
+    "email": "john@example.com",
+    "terms": True,
+})
+print(result["success"])  # True
+```
+
+### Wizard Helpers
+
+```python
+steps = form.get_steps()       # List[FormStep]
+fields = form.fields           # Flat list of all fields across all steps
+```
+
+### HTML Export
+
+Wizard forms export with `data-wizard="true"` on the `<form>` tag. Each step renders as a `<section data-step="true">` (not `<fieldset>`), so you can wire up your own step navigation in JavaScript.
+
+See [`examples/wizard_form.py`](examples/wizard_form.py) for a full working example.
+
 ## Custom Field Types
 
 You can create your own field types by subclassing `FormFieldBase` and registering them with `register_field_type()`. Custom fields integrate seamlessly with forms, JSON serialization, validation, and HTML export.
