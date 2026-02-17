@@ -1,0 +1,20 @@
+# Python-generated files
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+todo
+
+# Agents
+CLAUDE.md
+.claude
+
+# Caches
+.uv-cache
+.pytest_cache
+__pycache__/
