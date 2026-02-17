@@ -1,6 +1,6 @@
 from enum import Enum
 from codeforms.forms import Form
-from codeforms.fields import FormFieldBase
+from codeforms.fields import FormFieldBase, FieldGroup, FormStep
 from codeforms.i18n import t
 
 
@@ -111,6 +111,17 @@ def group_exporter(group, output_format: str, **kwargs) -> str:
     return ""
 
 
+def step_exporter(step, output_format: str, **kwargs) -> str:
+    """Exporta un paso de formulario (wizard) al formato especificado"""
+    if output_format in ('html', ExportFormat.HTML.value,
+                         ExportFormat.BOOTSTRAP4.value,
+                         ExportFormat.BOOTSTRAP5.value):
+        actual_kwargs = kwargs.get('kwargs', kwargs)
+        actual_kwargs['output_format'] = output_format
+        return step_to_html(step, **actual_kwargs)
+    return ""
+
+
 def group_to_html(group, **kwargs) -> str:
     """Genera la representación HTML del grupo de campos usando fieldset y legend"""
     output_format = kwargs.get('output_format', ExportFormat.HTML.value)
@@ -147,27 +158,85 @@ def group_to_html(group, **kwargs) -> str:
     html += description_html
     html += fields_html
     html += '</fieldset>'
-    
+
     return html
+
+
+def step_to_html(step, **kwargs) -> str:
+    """Genera la representación HTML de un paso del wizard usando <section>.
+
+    Diferente de FieldGroup (que usa <fieldset>) para distinguir semánticamente.
+    """
+    output_format = kwargs.get('output_format', ExportFormat.HTML.value)
+    is_bootstrap = output_format in [ExportFormat.BOOTSTRAP4.value, ExportFormat.BOOTSTRAP5.value]
+
+    # Clases CSS para el section
+    step_class = f"form-step mb-4 {step.css_classes or ''}".strip() if is_bootstrap else f"form-step {step.css_classes or ''}".strip()
+    title_class = "h4 mb-3" if is_bootstrap else "step-title"
+
+    # Atributos del section
+    step_attrs = {
+        "id": f"step_{step.id}",
+        "class": step_class,
+        "data-step": "true",
+        "data-validation-mode": step.validation_mode,
+        "data-skippable": str(step.skippable).lower()
+    }
+    step_attrs.update(step.attributes)
+
+    attrs_str = " ".join(f'{k}="{v}"' for k, v in step_attrs.items() if v)
+
+    # Generar HTML del contenido (campos y/o grupos)
+    content_html_parts = []
+    for item in step.content:
+        if isinstance(item, FieldGroup):
+            content_html_parts.append(group_to_html(item, **kwargs))
+        else:
+            content_html_parts.append(field_to_html(item, **kwargs))
+    content_html = "\n".join(content_html_parts)
+
+    # Descripción opcional
+    description_html = ""
+    if step.description:
+        desc_class = "text-muted mb-3" if is_bootstrap else "step-description"
+        description_html = f'<p class="{desc_class}">{step.description}</p>'
+
+    html = f'<section {attrs_str}>'
+    html += f'<h2 class="{title_class}">{step.title}</h2>'
+    html += description_html
+    html += content_html
+    html += '</section>'
+
+    return html
+
 
 def form_to_html(form: Form, **kwargs) -> str:
     """Genera el HTML completo del formulario"""
     output_format = kwargs.get('output_format', ExportFormat.HTML.value)
     form_class = "needs-validation" if output_format in [ExportFormat.BOOTSTRAP4.value, ExportFormat.BOOTSTRAP5.value] else ""
-    
+
+    # Detectar si es wizard
+    is_wizard = any(isinstance(item, FormStep) for item in form.content)
+    if is_wizard:
+        form_class = f"{form_class} form-wizard".strip()
+
     attributes = {
         "id": kwargs.get('id') or str(form.id),
         "name": form.name,
         "class": f"{form_class} {form.css_classes or ''}".strip(),
         "enctype": kwargs.get('enctype') or "application/x-www-form-urlencoded"
     }
+    if is_wizard:
+        attributes["data-wizard"] = "true"
 
     attrs_str = " ".join(f'{k}="{v}"' for k, v in attributes.items() if v)
-    
-    # Generar HTML para cada elemento del contenido (campos o grupos)
+
+    # Generar HTML para cada elemento del contenido (campos, grupos o steps)
     content_html_parts = []
     for item in form.content:
-        if hasattr(item, 'fields') and hasattr(item, 'title'):  # Es un FieldGroup
+        if isinstance(item, FormStep):  # Es un FormStep (wizard)
+            content_html_parts.append(step_to_html(item, **kwargs))
+        elif isinstance(item, FieldGroup):  # Es un FieldGroup
             content_html_parts.append(group_to_html(item, **kwargs))
         else:  # Es un campo individual
             content_html_parts.append(field_to_html(item, **kwargs))

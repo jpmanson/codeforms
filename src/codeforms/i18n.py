@@ -96,6 +96,15 @@ _MESSAGES_EN: Dict[str, str] = {
     "export.fix_errors": "Please fix the following errors:",
     "export.submit": "Submit",
     "export.field_required": "The field {label} is required",
+
+    # Wizard / Multi-step
+    "wizard.not_a_wizard_form": "This form is not configured as a wizard (no steps found)",
+    "wizard.invalid_step_index": "Invalid step index {index}, must be between 0 and {max}",
+    "wizard.step_validation_failed": "Validation failed for step {step}",
+    "wizard.validation_failed": "Wizard validation failed",
+
+    # Visibility
+    "visibility.unknown_operator": "Unknown visibility operator: {operator}",
 }
 
 _MESSAGES_ES: Dict[str, str] = {
@@ -163,6 +172,15 @@ _MESSAGES_ES: Dict[str, str] = {
     "export.fix_errors": "Por favor corrija los siguientes errores:",
     "export.submit": "Enviar",
     "export.field_required": "El campo {label} es requerido",
+
+    # Wizard / Multi-paso
+    "wizard.not_a_wizard_form": "Este formulario no está configurado como wizard (no se encontraron pasos)",
+    "wizard.invalid_step_index": "Índice de paso inválido {index}, debe estar entre 0 y {max}",
+    "wizard.step_validation_failed": "La validación falló para el paso {step}",
+    "wizard.validation_failed": "La validación del wizard falló",
+
+    # Visibilidad
+    "visibility.unknown_operator": "Operador de visibilidad desconocido: {operator}",
 }
 
 

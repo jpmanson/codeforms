@@ -1,7 +1,7 @@
 import re
 from datetime import date, datetime
 from enum import Enum
-from typing import Optional, List, Union, Dict, Any, Type, Set
+from typing import Optional, List, Literal, Union, Dict, Any, Type, Set
 from uuid import UUID, uuid4
 from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator, model_validator
 from codeforms.i18n import t
@@ -30,6 +30,25 @@ class ValidationRule(BaseModel):
     message: str
 
 
+class VisibilityRule(BaseModel):
+    """Regla de visibilidad condicional para un campo."""
+    field: str                    # nombre del campo del que depende
+    operator: str = "equals"      # equals, not_equals, in, not_in, gt, lt, is_empty, is_not_empty
+    value: Any = None             # valor a comparar
+
+
+class SelectOption(BaseModel):
+    value: str
+    label: str
+    selected: bool = False
+
+
+class DependentOptionsConfig(BaseModel):
+    """Configuración para opciones dependientes de otro campo."""
+    depends_on: str                              # nombre del campo padre
+    options_map: Dict[str, List[SelectOption]]    # valor_padre → opciones disponibles
+
+
 class FormFieldBase(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     name: str
@@ -43,6 +62,8 @@ class FormFieldBase(BaseModel):
     css_classes: Optional[str] = None
     readonly: bool = False
     attributes: Dict[str, str] = Field(default_factory=dict)
+    visible_when: Optional[List[VisibilityRule]] = None
+    dependent_options: Optional[DependentOptionsConfig] = None
 
     @field_validator('attributes', mode='before')
     @classmethod
@@ -72,12 +93,6 @@ class FormFieldBase(BaseModel):
         """Método genérico para exportar el campo en diferentes formatos"""
         from codeforms.export import field_exporter
         return field_exporter(self, output_format, kwargs=kwargs)
-
-
-class SelectOption(BaseModel):
-    value: str
-    label: str
-    selected: bool = False
 
 
 class CheckboxField(FormFieldBase):
@@ -258,6 +273,7 @@ class ListField(FormFieldBase):
 
 class FieldGroup(BaseModel):
     """Representa un grupo de campos en un formulario para organización en secciones"""
+    container_type: str = "group"  # Discriminador explícito para distinguir de FormStep
     id: UUID = Field(default_factory=uuid4)
     title: str
     description: Optional[str] = None
@@ -297,4 +313,65 @@ class FieldGroup(BaseModel):
         """Método para exportar el grupo de campos en diferentes formatos"""
         from codeforms.export import group_exporter
         return group_exporter(self, output_format, kwargs=kwargs)
+
+
+class FormStep(BaseModel):
+    """Representa un paso en un formulario multi-paso (wizard).
+
+    Agrupa campos y/o grupos de campos en una secuencia lógica.
+    Se diferencia de FieldGroup mediante el discriminador explícito type="step".
+    """
+    type: Literal["step"] = "step"  # Discriminador explícito (RISK-1)
+    id: UUID = Field(default_factory=uuid4)
+    title: str
+    description: Optional[str] = None
+    content: List[Any]  # Puede contener campos y/o FieldGroups
+    css_classes: Optional[str] = None
+    attributes: Dict[str, str] = Field(default_factory=dict)
+    validation_mode: str = "on_next"  # on_next | on_submit | on_change
+    skippable: bool = False
+
+    model_config = {
+        "json_serializers": {
+            UUID: str,
+            datetime: lambda v: v.isoformat(),
+            date: lambda v: v.isoformat()
+        }
+    }
+
+    @field_validator('attributes', mode='before')
+    @classmethod
+    def coerce_attributes_to_strings(cls, v: Any) -> Dict[str, str]:
+        if v is None:
+            return {}
+        if isinstance(v, dict):
+            return {str(k): str(val) for k, val in v.items()}
+        return v
+
+    @model_validator(mode='before')
+    @classmethod
+    def resolve_step_content(cls, data: Any) -> Any:
+        """Resolver items del contenido del paso usando el registry."""
+        if isinstance(data, dict) and 'content' in data:
+            from codeforms.registry import resolve_content_item
+            data = data.copy()
+            data['content'] = [resolve_content_item(item) for item in data['content']]
+        return data
+
+    @property
+    def fields(self) -> List[FormFieldBase]:
+        """Devuelve una lista plana de todos los campos en este paso,
+        incluyendo campos dentro de FieldGroups anidados (RISK-2)."""
+        all_fields = []
+        for item in self.content:
+            if isinstance(item, FieldGroup):
+                all_fields.extend(item.fields)
+            elif isinstance(item, FormFieldBase):
+                all_fields.append(item)
+        return all_fields
+
+    def export(self, output_format: str = 'html', **kwargs) -> str:
+        """Exportar el paso en diferentes formatos."""
+        from codeforms.export import step_exporter
+        return step_exporter(self, output_format, kwargs=kwargs)
 

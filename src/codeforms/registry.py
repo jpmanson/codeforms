@@ -126,15 +126,16 @@ def get_registered_field_types() -> Dict[str, List[Type[FormFieldBase]]]:
 def resolve_content_item(item: Any) -> Any:
     """
     Resolve a raw dict (or pass through an existing instance) to the
-    appropriate field or FieldGroup instance, using the registry.
+    appropriate field, FieldGroup, or FormStep instance, using the registry.
 
-    Resolution rules:
+    Resolution order (RISK-1 mitigation):
     1. If *item* is not a dict, return it unchanged (already an instance).
-    2. If the dict has ``title`` but no ``field_type``, treat it as a
-       ``FieldGroup``.
-    3. Otherwise, look up ``field_type`` in the registry and instantiate
-       the best-matching class (the candidate whose declared model fields
-       overlap most with the dict keys).
+    2. If the dict has an explicit ``type`` key, resolve container types
+       (e.g. ``type="step"`` → ``FormStep``).
+    3. If the dict has ``title`` but no ``field_type``, treat it as a
+       ``FieldGroup`` (legacy heuristic, unchanged).
+    4. Otherwise, look up ``field_type`` in the registry and instantiate
+       the best-matching class.
 
     Args:
         item: A dict from JSON/deserialization, or an already-validated
@@ -151,11 +152,20 @@ def resolve_content_item(item: Any) -> Any:
     if not isinstance(item, dict):
         return item  # already an instance
 
-    # Detect FieldGroup (has 'title', no 'field_type')
+    # (1) Explicit container type discriminator
+    if 'type' in item:
+        container_type = item['type']
+        if container_type == 'step':
+            from codeforms.fields import FormStep
+            return FormStep.model_validate(item)
+        # Unknown type values fall through to existing heuristics
+
+    # (2) Legacy FieldGroup heuristic (has 'title', no 'field_type')
     if 'title' in item and 'field_type' not in item:
         from codeforms.fields import FieldGroup
         return FieldGroup.model_validate(item)
 
+    # (3) Field type registry lookup
     field_type = item.get('field_type')
     if field_type is None:
         return item
