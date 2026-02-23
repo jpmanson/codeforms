@@ -6,14 +6,14 @@ and HTML export.
 """
 
 from codeforms import (
-    Form,
-    TextField,
-    EmailField,
-    SelectField,
     CheckboxField,
     CheckboxGroupField,
+    EmailField,
+    Form,
     RadioField,
+    SelectField,
     SelectOption,
+    TextField,
     ValidationRule,
     validate_form_data,
 )
@@ -205,7 +205,9 @@ if __name__ == "__main__":
         ],
     )
 
-    contact_form.set_default_values(data={"name": "John Doe", "email": "john@example.com"})
+    contact_form.set_default_values(
+        data={"name": "John Doe", "email": "john@example.com"}
+    )
 
     # Export as Bootstrap 4 HTML
     print(contact_form.export(output_format="html_bootstrap4", id="my_form"))

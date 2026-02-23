@@ -1,6 +1,6 @@
 [project]
 name = "codeforms"
-version = "0.2.0"
+version = "0.2.1"
 description = "Python library for creating, validating, and rendering web forms using Pydantic"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -12,6 +12,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "ruff>=0.8",
 ]
 
 [build-system]
@@ -20,6 +21,29 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/codeforms"]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = [
+    "E501",   # line too long — enforced by formatter; remaining are string literals
+    "UP006",  # use dict/list instead of Dict/List — requires from __future__ import annotations for py39
+    "UP035",  # deprecated typing imports — same as UP006
+    "UP045",  # use X | None — requires from __future__ import annotations for py39
+    "B023",   # loop variable binding in closures — intentional pattern in FormDataValidator
+    "B904",   # raise from in except — existing pattern
+    "SIM102", # nested if — existing code patterns, not worth changing
+    "SIM101", # merge isinstance calls — existing code pattern
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/codeforms/forms.py" = ["F403", "F405"]  # star imports used intentionally
+
+[tool.ruff.lint.isort]
+known-first-party = ["codeforms"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

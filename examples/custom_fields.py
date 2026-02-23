@@ -11,22 +11,23 @@ from typing import Optional
 from pydantic import field_validator
 
 from codeforms import (
+    EmailField,
+    FieldGroup,
     Form,
     FormFieldBase,
-    FieldGroup,
     TextField,
-    EmailField,
-    register_field_type,
     get_registered_field_types,
+    register_field_type,
 )
-
 
 # ---------------------------------------------------------------------------
 # 1. Define custom field types
 # ---------------------------------------------------------------------------
 
+
 class PhoneField(FormFieldBase):
     """A phone number field with an optional country code."""
+
     field_type: str = "phone"
     country_code: str = "+1"
     placeholder: Optional[str] = "e.g. +1-555-0100"
@@ -34,6 +35,7 @@ class PhoneField(FormFieldBase):
 
 class RatingField(FormFieldBase):
     """A numeric rating field with configurable range."""
+
     field_type: str = "rating"
     min_rating: int = 1
     max_rating: int = 5
@@ -49,6 +51,7 @@ class RatingField(FormFieldBase):
 
 class ColorField(FormFieldBase):
     """A colour picker field."""
+
     field_type: str = "color"
     color_format: str = "hex"  # hex | rgb | hsl
 

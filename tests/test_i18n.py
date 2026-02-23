@@ -3,26 +3,26 @@
 from __future__ import annotations
 
 import pytest
+
 from codeforms import (
-    Form,
-    TextField,
-    EmailField,
-    SelectField,
     CheckboxField,
-    RadioField,
-    NumberField,
-    DateField,
     CheckboxGroupField,
-    UrlField,
-    SelectOption,
+    EmailField,
     FieldGroup,
-    validate_form_data,
-    set_locale,
-    get_locale,
+    Form,
+    NumberField,
+    RadioField,
+    SelectField,
+    SelectOption,
+    TextField,
+    UrlField,
     get_available_locales,
-    register_locale,
+    get_locale,
     get_messages,
+    register_locale,
+    set_locale,
     t,
+    validate_form_data,
 )
 
 
@@ -38,6 +38,7 @@ def reset_locale():
 # ---------------------------------------------------------------------------
 # Core i18n API
 # ---------------------------------------------------------------------------
+
 
 class TestLocaleManagement:
     def test_default_locale_is_english(self):
@@ -109,6 +110,7 @@ class TestTranslationFunction:
 # ---------------------------------------------------------------------------
 # Messages in English (default)
 # ---------------------------------------------------------------------------
+
 
 class TestEnglishMessages:
     def test_form_validate_data_required_field(self):
@@ -225,6 +227,7 @@ class TestEnglishMessages:
 # Messages in Spanish
 # ---------------------------------------------------------------------------
 
+
 class TestSpanishMessages:
     def test_form_validate_data_required_field_es(self):
         set_locale("es")
@@ -281,6 +284,7 @@ class TestSpanishMessages:
 # ---------------------------------------------------------------------------
 # Field-level validator messages
 # ---------------------------------------------------------------------------
+
 
 class TestFieldValidatorMessages:
     def test_text_field_validate_value_required_en(self):
@@ -385,6 +389,7 @@ class TestFieldValidatorMessages:
 # ---------------------------------------------------------------------------
 # validate_form_data specific messages
 # ---------------------------------------------------------------------------
+
 
 class TestValidateFormDataMessages:
     def test_select_invalid_category(self):

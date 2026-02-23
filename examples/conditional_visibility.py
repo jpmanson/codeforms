@@ -7,9 +7,9 @@ y la diferencia entre validación legacy y dinámica.
 
 from codeforms import (
     Form,
-    TextField,
     SelectField,
     SelectOption,
+    TextField,
     VisibilityRule,
     validate_form_data,
     validate_form_data_dynamic,
@@ -79,7 +79,9 @@ if __name__ == "__main__":
     print(f"US data: success={result['success']}")
     if not result["success"]:
         print(f"  Errors: {result['errors']}")
-        print("  (Province and County are required but missing — legacy doesn't know they're hidden)")
+        print(
+            "  (Province and County are required but missing — legacy doesn't know they're hidden)"
+        )
 
     # --- Dynamic validation: respects visible_when ---
     print("\n=== Dynamic validate_form_data_dynamic (respects visible_when) ===")

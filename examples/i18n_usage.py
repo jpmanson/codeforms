@@ -6,18 +6,18 @@ and observe how validation messages change based on the active locale.
 """
 
 from codeforms import (
-    Form,
-    TextField,
     EmailField,
+    Form,
     NumberField,
     SelectField,
     SelectOption,
-    validate_form_data,
-    set_locale,
-    get_locale,
+    TextField,
     get_available_locales,
+    get_locale,
     register_locale,
+    set_locale,
     t,
+    validate_form_data,
 )
 
 
@@ -90,15 +90,18 @@ def example_register_custom_locale():
     """Register a new locale (Portuguese) and use it."""
     print("=== Custom locale (Portuguese) ===")
 
-    register_locale("pt", {
-        "field.required": "Este campo é obrigatório",
-        "field.required_named": "O campo {name} é obrigatório",
-        "email.invalid": "E-mail inválido",
-        "number.min_value": "O valor deve ser maior ou igual a {min}",
-        "number.max_value": "O valor deve ser menor ou igual a {max}",
-        "form.validation_success": "Dados validados com sucesso",
-        "form.data_validation_error": "Erro na validação dos dados",
-    })
+    register_locale(
+        "pt",
+        {
+            "field.required": "Este campo é obrigatório",
+            "field.required_named": "O campo {name} é obrigatório",
+            "email.invalid": "E-mail inválido",
+            "number.min_value": "O valor deve ser maior ou igual a {min}",
+            "number.max_value": "O valor deve ser menor ou igual a {max}",
+            "form.validation_success": "Dados validados com sucesso",
+            "form.data_validation_error": "Erro na validação dos dados",
+        },
+    )
 
     set_locale("pt")
     print(f"Available locales: {get_available_locales()}")
@@ -114,9 +117,14 @@ def example_register_custom_locale():
     print(f"Email error: {result['errors'][0]['message']}")
 
     # Key not in 'pt' catalog → falls back to English
-    result = validate_form_data(form, {
-        "name": "João", "email": "a@b.com", "country": "invalid",
-    })
+    result = validate_form_data(
+        form,
+        {
+            "name": "João",
+            "email": "a@b.com",
+            "country": "invalid",
+        },
+    )
     print(f"Select error (fallback to English): {result['errors'][0]['message']}")
 
     set_locale("en")  # Restore default

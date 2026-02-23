@@ -7,30 +7,22 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from codeforms import (
-    Form,
-    TextField,
     EmailField,
-    NumberField,
-    SelectField,
-    SelectOption,
-    CheckboxField,
-    CheckboxGroupField,
-    RadioField,
     FieldGroup,
-    FormStep,
-    VisibilityRule,
-    validate_form_data,
-    register_field_type,
+    Form,
     FormFieldBase,
+    FormStep,
+    TextField,
+    VisibilityRule,
+    register_field_type,
+    validate_form_data,
 )
-
 
 # ---------------------------------------------------------------------------
 # Form construction backward compat
 # ---------------------------------------------------------------------------
+
 
 class TestFormConstruction:
     def test_form_with_fields_key(self):
@@ -112,6 +104,7 @@ class TestFormConstruction:
 # ---------------------------------------------------------------------------
 # JSON roundtrip backward compat
 # ---------------------------------------------------------------------------
+
 
 class TestJsonRoundtrip:
     def test_legacy_payload_loads_unchanged(self):
@@ -196,6 +189,7 @@ class TestJsonRoundtrip:
 # Validation backward compat
 # ---------------------------------------------------------------------------
 
+
 class TestValidationCompat:
     def test_validate_form_data_ignores_visible_when(self):
         """Legacy validate_form_data does NOT respect visible_when (RISK-3)."""
@@ -234,6 +228,7 @@ class TestValidationCompat:
 # HTML export backward compat
 # ---------------------------------------------------------------------------
 
+
 class TestExportCompat:
     def test_non_step_form_html_unchanged(self):
         """Forms without steps produce the same HTML structure."""
@@ -268,6 +263,7 @@ class TestExportCompat:
 # ---------------------------------------------------------------------------
 # Custom field registry compat with new features
 # ---------------------------------------------------------------------------
+
 
 class TestCustomFieldRegistryCompat:
     def setup_method(self):

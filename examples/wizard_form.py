@@ -6,16 +6,14 @@ y validación global.
 """
 
 from codeforms import (
+    CheckboxField,
+    EmailField,
     Form,
     FormStep,
-    TextField,
-    EmailField,
     NumberField,
     SelectField,
     SelectOption,
-    CheckboxField,
-    FieldGroup,
-    validate_form_data_dynamic,
+    TextField,
 )
 
 
@@ -85,35 +83,45 @@ if __name__ == "__main__":
     for i, step in enumerate(form.get_steps()):
         print(f"\n  Step {i + 1}: {step.title}")
         for field in step.fields:
-            print(f"    - {field.name} ({'required' if field.required else 'optional'})")
+            print(
+                f"    - {field.name} ({'required' if field.required else 'optional'})"
+            )
 
     # Validar paso 1
     print("\n--- Validating Step 1 ---")
-    result = form.validate_step(0, {
-        "first_name": "John",
-        "last_name": "Doe",
-        "email": "john@example.com",
-    })
+    result = form.validate_step(
+        0,
+        {
+            "first_name": "John",
+            "last_name": "Doe",
+            "email": "john@example.com",
+        },
+    )
     print(f"Step 1 valid: {result['success']}")
 
     # Validar paso 2
     print("\n--- Validating Step 2 ---")
-    result = form.validate_step(1, {
-        "plan": "pro",
-        "team_size": 5,
-    })
+    result = form.validate_step(
+        1,
+        {
+            "plan": "pro",
+            "team_size": 5,
+        },
+    )
     print(f"Step 2 valid: {result['success']}")
 
     # Validar todos los pasos
     print("\n--- Validating All Steps ---")
-    result = form.validate_all_steps({
-        "first_name": "John",
-        "last_name": "Doe",
-        "email": "john@example.com",
-        "plan": "pro",
-        "team_size": 5,
-        "terms": True,
-    })
+    result = form.validate_all_steps(
+        {
+            "first_name": "John",
+            "last_name": "Doe",
+            "email": "john@example.com",
+            "plan": "pro",
+            "team_size": 5,
+            "terms": True,
+        }
+    )
     print(f"All steps valid: {result['success']}")
 
     # Exportar HTML

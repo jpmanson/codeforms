@@ -167,10 +167,114 @@ print(dict_output)
 | `html` | Semantic HTML |
 | `html_bootstrap4` | HTML with Bootstrap 4 classes |
 | `html_bootstrap5` | HTML with Bootstrap 5 classes |
+| `json_schema` | [JSON Schema](http://json-schema.org/draft-07/schema#) (draft-07) |
 | `json` | JSON representation of the form |
 | `dict` | Python dictionary representation |
 
 HTML export can also generate a `<script>` block for basic client-side validation.
+
+### JSON Schema Export
+
+Generate a standard [JSON Schema (draft-07)](http://json-schema.org/draft-07/schema#) from any form. The resulting schema is compatible with tools like [React JSON Schema Form](https://github.com/rjsf-team/react-jsonschema-form), [Angular Formly](https://formly.dev/), and any JSON Schema validator.
+
+```python
+import json
+from codeforms import (
+    Form, TextField, EmailField, NumberField, SelectField, SelectOption,
+    CheckboxField, form_to_json_schema,
+)
+
+form = Form(
+    name="registration",
+    fields=[
+        TextField(name="name", label="Full Name", required=True, minlength=2, maxlength=100),
+        EmailField(name="email", label="Email", required=True),
+        NumberField(name="age", label="Age", min_value=18, max_value=120),
+        SelectField(
+            name="country",
+            label="Country",
+            required=True,
+            options=[
+                SelectOption(value="us", label="United States"),
+                SelectOption(value="uk", label="United Kingdom"),
+            ],
+        ),
+        CheckboxField(name="terms", label="Accept Terms", required=True),
+    ],
+)
+
+# Option 1: Direct function call
+schema = form_to_json_schema(form)
+print(json.dumps(schema, indent=2))
+
+# Option 2: Via form.export()
+result = form.export("json_schema")
+schema = result["output"]
+```
+
+Output:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "registration",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 100,
+      "title": "Full Name"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+    },
+    "age": {
+      "type": "number",
+      "minimum": 18,
+      "maximum": 120,
+      "title": "Age"
+    },
+    "country": {
+      "type": "string",
+      "enum": ["us", "uk"],
+      "title": "Country"
+    },
+    "terms": {
+      "type": "boolean",
+      "title": "Accept Terms"
+    }
+  },
+  "required": ["name", "email", "country", "terms"],
+  "additionalProperties": false
+}
+```
+
+#### Field Type Mapping
+
+| codeforms Field | JSON Schema Type | Extra Keywords |
+|---|---|---|
+| `TextField` | `string` | `minLength`, `maxLength`, `pattern` |
+| `EmailField` | `string` (`format: "email"`) | — |
+| `NumberField` | `number` | `minimum`, `maximum`, `multipleOf` |
+| `DateField` | `string` (`format: "date"`) | — |
+| `SelectField` | `string` + `enum` | — |
+| `SelectField` (`multiple=True`) | `array` of `enum` strings | `minItems`, `maxItems`, `uniqueItems` |
+| `RadioField` | `string` + `enum` | — |
+| `CheckboxField` | `boolean` | — |
+| `CheckboxGroupField` | `array` of `enum` strings | `uniqueItems` |
+| `FileField` | `string` (`contentEncoding: "base64"`) | — |
+| `FileField` (`multiple=True`) | `array` of base64 strings | — |
+| `HiddenField` | `string` | — |
+| `UrlField` | `string` (`format: "uri"`) | `minLength`, `maxLength` |
+| `TextareaField` | `string` | `minLength`, `maxLength` |
+| `ListField` | `array` | `minItems`, `maxItems` |
+
+Field annotations like `label`, `help_text`, `default_value`, and `readonly` map to the JSON Schema keywords `title`, `description`, `default`, and `readOnly` respectively.
+
+Fields inside `FieldGroup` and `FormStep` containers are flattened into the top-level `properties` automatically.
 
 ## Internationalization (i18n)
 

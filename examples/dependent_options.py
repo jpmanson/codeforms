@@ -6,10 +6,10 @@ de otro campo (por ejemplo, país → ciudades).
 """
 
 from codeforms import (
+    DependentOptionsConfig,
     Form,
     SelectField,
     SelectOption,
-    DependentOptionsConfig,
 )
 
 
@@ -62,6 +62,7 @@ if __name__ == "__main__":
 
     # La metadata de dependencia se serializa a JSON
     import json
+
     data = json.loads(form.model_dump_json(exclude_none=True))
     city_field = data["content"][1]
     print("City field dependent_options:")

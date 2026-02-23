@@ -15,6 +15,8 @@ info
 # Agents
 CLAUDE.md
 .claude
+.agents
+knowledge.md
 
 # Caches and temps
 .uv-cache

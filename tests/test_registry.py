@@ -9,27 +9,28 @@ import pytest
 from pydantic import field_validator
 
 from codeforms import (
-    Form,
-    FormFieldBase,
-    FieldGroup,
-    FieldType,
-    SelectOption,
-    TextField,
     CheckboxField,
     CheckboxGroupField,
-    validate_form_data,
-    register_field_type,
+    FieldGroup,
+    FieldType,
+    Form,
+    FormFieldBase,
+    SelectOption,
+    TextField,
     get_registered_field_types,
+    register_field_type,
+    validate_form_data,
 )
-from codeforms.registry import resolve_content_item, _field_type_registry
-
+from codeforms.registry import resolve_content_item
 
 # ---------------------------------------------------------------------------
 # Custom field types used across tests
 # ---------------------------------------------------------------------------
 
+
 class PhoneField(FormFieldBase):
     """Custom field with a string field_type (not in the FieldType enum)."""
+
     field_type: str = "phone"
     country_code: str = "+1"
     pattern: Optional[str] = r"^\+?\d[\d\-\s]{6,14}$"
@@ -37,6 +38,7 @@ class PhoneField(FormFieldBase):
 
 class RatingField(FormFieldBase):
     """Custom field with a string field_type and extra validation."""
+
     field_type: str = "rating"
     min_rating: int = 1
     max_rating: int = 5
@@ -51,6 +53,7 @@ class RatingField(FormFieldBase):
 
 class ColorField(FormFieldBase):
     """Custom field reusing an existing FieldType (text) but as a specialization."""
+
     field_type: FieldType = FieldType.TEXT
     color_format: str = "hex"  # hex, rgb, hsl
 
@@ -58,6 +61,7 @@ class ColorField(FormFieldBase):
 # ---------------------------------------------------------------------------
 # Registry API
 # ---------------------------------------------------------------------------
+
 
 class TestRegistryAPI:
     def test_builtin_types_are_registered(self):
@@ -114,6 +118,7 @@ class TestRegistryAPI:
 # resolve_content_item
 # ---------------------------------------------------------------------------
 
+
 class TestResolveContentItem:
     def setup_method(self):
         register_field_type(PhoneField)
@@ -126,7 +131,12 @@ class TestResolveContentItem:
         assert result.name == "x"
 
     def test_resolve_custom_field_dict(self):
-        item = {"field_type": "phone", "name": "phone", "label": "Phone", "country_code": "+54"}
+        item = {
+            "field_type": "phone",
+            "name": "phone",
+            "label": "Phone",
+            "country_code": "+54",
+        }
         result = resolve_content_item(item)
         assert isinstance(result, PhoneField)
         assert result.country_code == "+54"
@@ -174,6 +184,7 @@ class TestResolveContentItem:
 # Form with custom field types
 # ---------------------------------------------------------------------------
 
+
 class TestFormWithCustomTypes:
     def setup_method(self):
         register_field_type(PhoneField)
@@ -192,13 +203,20 @@ class TestFormWithCustomTypes:
         assert form.fields[1].country_code == "+54"
 
     def test_form_with_custom_field_from_dict(self):
-        form = Form.model_validate({
-            "name": "test",
-            "content": [
-                {"field_type": "text", "name": "name", "label": "Name"},
-                {"field_type": "phone", "name": "phone", "label": "Phone", "country_code": "+54"},
-            ],
-        })
+        form = Form.model_validate(
+            {
+                "name": "test",
+                "content": [
+                    {"field_type": "text", "name": "name", "label": "Name"},
+                    {
+                        "field_type": "phone",
+                        "name": "phone",
+                        "label": "Phone",
+                        "country_code": "+54",
+                    },
+                ],
+            }
+        )
         assert len(form.fields) == 2
         assert isinstance(form.fields[1], PhoneField)
         assert form.fields[1].country_code == "+54"
@@ -236,12 +254,14 @@ class TestFormWithCustomTypes:
         assert restored.fields[2].max_rating == 10
 
     def test_form_loads_with_custom_field(self):
-        json_str = json.dumps({
-            "name": "test",
-            "content": [
-                {"field_type": "phone", "name": "phone", "label": "Phone"},
-            ],
-        })
+        json_str = json.dumps(
+            {
+                "name": "test",
+                "content": [
+                    {"field_type": "phone", "name": "phone", "label": "Phone"},
+                ],
+            }
+        )
         form = Form.loads(json_str)
         assert isinstance(form.fields[0], PhoneField)
 
@@ -297,6 +317,7 @@ class TestFormWithCustomTypes:
 # FieldGroup with custom field types
 # ---------------------------------------------------------------------------
 
+
 class TestFieldGroupWithCustomTypes:
     def setup_method(self):
         register_field_type(PhoneField)
@@ -313,13 +334,15 @@ class TestFieldGroupWithCustomTypes:
         assert isinstance(group.fields[1], PhoneField)
 
     def test_group_from_dict_with_custom_field(self):
-        group = FieldGroup.model_validate({
-            "title": "Contact",
-            "fields": [
-                {"field_type": "text", "name": "name", "label": "Name"},
-                {"field_type": "phone", "name": "phone", "label": "Phone"},
-            ],
-        })
+        group = FieldGroup.model_validate(
+            {
+                "title": "Contact",
+                "fields": [
+                    {"field_type": "text", "name": "name", "label": "Name"},
+                    {"field_type": "phone", "name": "phone", "label": "Phone"},
+                ],
+            }
+        )
         assert isinstance(group.fields[1], PhoneField)
 
     def test_form_with_group_containing_custom_field_json_roundtrip(self):
@@ -351,6 +374,7 @@ class TestFieldGroupWithCustomTypes:
 # field_type_value property
 # ---------------------------------------------------------------------------
 
+
 class TestFieldTypeValue:
     def test_enum_field_type_value(self):
         field = TextField(name="x", label="X")
@@ -371,6 +395,7 @@ class TestFieldTypeValue:
 # ---------------------------------------------------------------------------
 # Backward compatibility
 # ---------------------------------------------------------------------------
+
 
 class TestBackwardCompatibility:
     def test_form_fields_key_still_works(self):

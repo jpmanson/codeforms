@@ -17,7 +17,7 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Type
 
 if TYPE_CHECKING:
     from codeforms.fields import FormFieldBase
@@ -33,15 +33,16 @@ _registry_initialized: bool = False
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _get_field_type_key(cls: Type[FormFieldBase]) -> str:
     """Extract the field_type default value as a plain string."""
-    field_info = cls.model_fields.get('field_type')
+    field_info = cls.model_fields.get("field_type")
     if field_info is None:
         raise ValueError(f"{cls.__name__} has no 'field_type' field")
     default = field_info.default
     if default is None:
         raise ValueError(f"{cls.__name__} must define a default field_type value")
-    return default.value if hasattr(default, 'value') else str(default)
+    return default.value if hasattr(default, "value") else str(default)
 
 
 def _register_class(cls: Type[FormFieldBase]) -> None:
@@ -61,15 +62,35 @@ def _init_builtin_types() -> None:
     _registry_initialized = True
 
     from codeforms.fields import (
-        TextField, EmailField, NumberField, DateField,
-        SelectField, RadioField, CheckboxField, CheckboxGroupField,
-        FileField, HiddenField, UrlField, TextareaField, ListField,
+        CheckboxField,
+        CheckboxGroupField,
+        DateField,
+        EmailField,
+        FileField,
+        HiddenField,
+        ListField,
+        NumberField,
+        RadioField,
+        SelectField,
+        TextareaField,
+        TextField,
+        UrlField,
     )
 
     for cls in [
-        TextField, EmailField, NumberField, DateField,
-        SelectField, RadioField, CheckboxField, CheckboxGroupField,
-        FileField, HiddenField, UrlField, TextareaField, ListField,
+        TextField,
+        EmailField,
+        NumberField,
+        DateField,
+        SelectField,
+        RadioField,
+        CheckboxField,
+        CheckboxGroupField,
+        FileField,
+        HiddenField,
+        UrlField,
+        TextareaField,
+        ListField,
     ]:
         _register_class(cls)
 
@@ -77,6 +98,7 @@ def _init_builtin_types() -> None:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def register_field_type(field_class: Type[FormFieldBase]) -> None:
     """
@@ -104,10 +126,9 @@ def register_field_type(field_class: Type[FormFieldBase]) -> None:
     """
     _init_builtin_types()
     from codeforms.fields import FormFieldBase as _Base
+
     if not issubclass(field_class, _Base):
-        raise TypeError(
-            f"{field_class.__name__} must be a subclass of FormFieldBase"
-        )
+        raise TypeError(f"{field_class.__name__} must be a subclass of FormFieldBase")
     _register_class(field_class)
 
 
@@ -153,25 +174,27 @@ def resolve_content_item(item: Any) -> Any:
         return item  # already an instance
 
     # (1) Explicit container type discriminator
-    if 'type' in item:
-        container_type = item['type']
-        if container_type == 'step':
+    if "type" in item:
+        container_type = item["type"]
+        if container_type == "step":
             from codeforms.fields import FormStep
+
             return FormStep.model_validate(item)
         # Unknown type values fall through to existing heuristics
 
     # (2) Legacy FieldGroup heuristic (has 'title', no 'field_type')
-    if 'title' in item and 'field_type' not in item:
+    if "title" in item and "field_type" not in item:
         from codeforms.fields import FieldGroup
+
         return FieldGroup.model_validate(item)
 
     # (3) Field type registry lookup
-    field_type = item.get('field_type')
+    field_type = item.get("field_type")
     if field_type is None:
         return item
 
     # Normalise enum → string
-    if hasattr(field_type, 'value'):
+    if hasattr(field_type, "value"):
         field_type = field_type.value
 
     candidates = _field_type_registry.get(field_type)

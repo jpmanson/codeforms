@@ -96,11 +96,15 @@ def test_contact_form_defaults_and_bootstrap_export():
             EmailField(name="email", label="Email", required=True),
         ],
     )
-    contact_form.set_default_values(data={"name": "John Doe", "email": "john@example.com"})
+    contact_form.set_default_values(
+        data={"name": "John Doe", "email": "john@example.com"}
+    )
 
     export_result = contact_form.export(output_format="html_bootstrap4", id="my_form")
     html = export_result["output"]
-    validation = contact_form.validate_data({"name": "John Doe", "email": "john@example.com"})
+    validation = contact_form.validate_data(
+        {"name": "John Doe", "email": "john@example.com"}
+    )
 
     assert export_result["format"] == "html_bootstrap4"
     assert 'id="my_form"' in html

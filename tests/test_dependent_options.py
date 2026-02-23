@@ -4,30 +4,31 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from codeforms import (
+    DependentOptionsConfig,
     Form,
     SelectField,
     SelectOption,
-    DependentOptionsConfig,
-    validate_form_data_dynamic,
 )
-
 
 # ---------------------------------------------------------------------------
 # DependentOptionsConfig model
 # ---------------------------------------------------------------------------
+
 
 class TestDependentOptionsConfig:
     def test_basic_creation(self):
         config = DependentOptionsConfig(
             depends_on="country",
             options_map={
-                "US": [SelectOption(value="NY", label="New York"),
-                       SelectOption(value="CA", label="California")],
-                "AR": [SelectOption(value="BA", label="Buenos Aires"),
-                       SelectOption(value="CO", label="Córdoba")],
+                "US": [
+                    SelectOption(value="NY", label="New York"),
+                    SelectOption(value="CA", label="California"),
+                ],
+                "AR": [
+                    SelectOption(value="BA", label="Buenos Aires"),
+                    SelectOption(value="CO", label="Córdoba"),
+                ],
             },
         )
         assert config.depends_on == "country"
@@ -54,6 +55,7 @@ class TestDependentOptionsConfig:
 # ---------------------------------------------------------------------------
 # DependentOptionsConfig on fields
 # ---------------------------------------------------------------------------
+
 
 class TestFieldWithDependentOptions:
     def test_field_with_dependent_options(self):

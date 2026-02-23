@@ -7,24 +7,21 @@ import json
 import pytest
 
 from codeforms import (
+    EmailField,
+    FieldGroup,
     Form,
     FormStep,
-    TextField,
-    EmailField,
-    NumberField,
     SelectField,
     SelectOption,
-    FieldGroup,
+    TextField,
     VisibilityRule,
-    validate_form_data,
-    validate_form_data_dynamic,
 )
 from codeforms.registry import resolve_content_item
-
 
 # ---------------------------------------------------------------------------
 # FormStep model
 # ---------------------------------------------------------------------------
+
 
 class TestFormStepModel:
     def test_basic_creation(self):
@@ -85,6 +82,7 @@ class TestFormStepModel:
 # Resolver discrimination (RISK-1)
 # ---------------------------------------------------------------------------
 
+
 class TestResolverDiscrimination:
     def test_type_step_resolves_to_formstep(self):
         item = {
@@ -138,6 +136,7 @@ class TestResolverDiscrimination:
 # ---------------------------------------------------------------------------
 # Form with steps
 # ---------------------------------------------------------------------------
+
 
 class TestFormWithSteps:
     def _make_wizard_form(self):
@@ -207,22 +206,26 @@ class TestFormWithSteps:
 
     def test_validate_all_steps_success(self):
         form = self._make_wizard_form()
-        result = form.validate_all_steps({
-            "name": "John",
-            "email": "j@x.com",
-            "plan": "pro",
-        })
+        result = form.validate_all_steps(
+            {
+                "name": "John",
+                "email": "j@x.com",
+                "plan": "pro",
+            }
+        )
         assert result["success"] is True
         assert result["data"]["name"] == "John"
         assert result["data"]["plan"] == "pro"
 
     def test_validate_all_steps_partial_failure(self):
         form = self._make_wizard_form()
-        result = form.validate_all_steps({
-            "name": "John",
-            "email": "j@x.com",
-            # missing plan
-        })
+        result = form.validate_all_steps(
+            {
+                "name": "John",
+                "email": "j@x.com",
+                # missing plan
+            }
+        )
         assert result["success"] is False
         assert result["step_errors"] is not None
         assert 1 in result["step_errors"]
@@ -266,6 +269,7 @@ class TestFormWithSteps:
 # Step with visibility
 # ---------------------------------------------------------------------------
 
+
 class TestStepWithVisibility:
     def test_step_fields_with_visibility(self):
         form = Form(
@@ -280,7 +284,9 @@ class TestStepWithVisibility:
                             label="Detail",
                             required=True,
                             visible_when=[
-                                VisibilityRule(field="type", operator="equals", value="other"),
+                                VisibilityRule(
+                                    field="type", operator="equals", value="other"
+                                ),
                             ],
                         ),
                     ],
@@ -307,6 +313,7 @@ class TestStepWithVisibility:
 # ---------------------------------------------------------------------------
 # HTML export for wizard
 # ---------------------------------------------------------------------------
+
 
 class TestWizardExport:
     def test_wizard_form_has_data_wizard(self):

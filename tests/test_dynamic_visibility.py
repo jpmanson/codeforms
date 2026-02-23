@@ -4,24 +4,21 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from codeforms import (
     Form,
-    TextField,
-    NumberField,
     SelectField,
     SelectOption,
+    TextField,
     VisibilityRule,
     evaluate_visibility,
     validate_form_data,
     validate_form_data_dynamic,
 )
 
-
 # ---------------------------------------------------------------------------
 # evaluate_visibility
 # ---------------------------------------------------------------------------
+
 
 class TestEvaluateVisibility:
     def test_no_rules_always_visible(self):
@@ -30,39 +27,52 @@ class TestEvaluateVisibility:
 
     def test_equals_match(self):
         field = TextField(
-            name="state", label="State",
-            visible_when=[VisibilityRule(field="country", operator="equals", value="US")],
+            name="state",
+            label="State",
+            visible_when=[
+                VisibilityRule(field="country", operator="equals", value="US")
+            ],
         )
         assert evaluate_visibility(field, {"country": "US"}) is True
         assert evaluate_visibility(field, {"country": "AR"}) is False
 
     def test_not_equals(self):
         field = TextField(
-            name="x", label="X",
-            visible_when=[VisibilityRule(field="type", operator="not_equals", value="hidden")],
+            name="x",
+            label="X",
+            visible_when=[
+                VisibilityRule(field="type", operator="not_equals", value="hidden")
+            ],
         )
         assert evaluate_visibility(field, {"type": "visible"}) is True
         assert evaluate_visibility(field, {"type": "hidden"}) is False
 
     def test_in_operator(self):
         field = TextField(
-            name="x", label="X",
-            visible_when=[VisibilityRule(field="country", operator="in", value=["US", "CA", "MX"])],
+            name="x",
+            label="X",
+            visible_when=[
+                VisibilityRule(field="country", operator="in", value=["US", "CA", "MX"])
+            ],
         )
         assert evaluate_visibility(field, {"country": "US"}) is True
         assert evaluate_visibility(field, {"country": "BR"}) is False
 
     def test_not_in_operator(self):
         field = TextField(
-            name="x", label="X",
-            visible_when=[VisibilityRule(field="country", operator="not_in", value=["CN", "RU"])],
+            name="x",
+            label="X",
+            visible_when=[
+                VisibilityRule(field="country", operator="not_in", value=["CN", "RU"])
+            ],
         )
         assert evaluate_visibility(field, {"country": "US"}) is True
         assert evaluate_visibility(field, {"country": "CN"}) is False
 
     def test_gt_operator(self):
         field = TextField(
-            name="x", label="X",
+            name="x",
+            label="X",
             visible_when=[VisibilityRule(field="age", operator="gt", value=18)],
         )
         assert evaluate_visibility(field, {"age": 21}) is True
@@ -71,7 +81,8 @@ class TestEvaluateVisibility:
 
     def test_lt_operator(self):
         field = TextField(
-            name="x", label="X",
+            name="x",
+            label="X",
             visible_when=[VisibilityRule(field="age", operator="lt", value=65)],
         )
         assert evaluate_visibility(field, {"age": 30}) is True
@@ -79,7 +90,8 @@ class TestEvaluateVisibility:
 
     def test_is_empty(self):
         field = TextField(
-            name="x", label="X",
+            name="x",
+            label="X",
             visible_when=[VisibilityRule(field="other", operator="is_empty")],
         )
         assert evaluate_visibility(field, {"other": None}) is True
@@ -89,7 +101,8 @@ class TestEvaluateVisibility:
 
     def test_is_not_empty(self):
         field = TextField(
-            name="x", label="X",
+            name="x",
+            label="X",
             visible_when=[VisibilityRule(field="other", operator="is_not_empty")],
         )
         assert evaluate_visibility(field, {"other": "value"}) is True
@@ -99,7 +112,8 @@ class TestEvaluateVisibility:
     def test_multiple_rules_and_logic(self):
         """Multiple rules = AND logic (all must be true)."""
         field = TextField(
-            name="x", label="X",
+            name="x",
+            label="X",
             visible_when=[
                 VisibilityRule(field="country", operator="equals", value="US"),
                 VisibilityRule(field="age", operator="gt", value=18),
@@ -111,8 +125,11 @@ class TestEvaluateVisibility:
 
     def test_missing_field_in_data(self):
         field = TextField(
-            name="x", label="X",
-            visible_when=[VisibilityRule(field="missing", operator="equals", value="yes")],
+            name="x",
+            label="X",
+            visible_when=[
+                VisibilityRule(field="missing", operator="equals", value="yes")
+            ],
         )
         # missing field → data.get returns None → None != "yes" → False
         assert evaluate_visibility(field, {}) is False
@@ -121,6 +138,7 @@ class TestEvaluateVisibility:
 # ---------------------------------------------------------------------------
 # validate_form_data_dynamic
 # ---------------------------------------------------------------------------
+
 
 class TestValidateFormDataDynamic:
     def _make_form(self):
@@ -202,6 +220,7 @@ class TestValidateFormDataDynamic:
 # ---------------------------------------------------------------------------
 # Serialization of visible_when
 # ---------------------------------------------------------------------------
+
 
 class TestVisibilityRuleSerialization:
     def test_visible_when_serializes_to_json(self):
