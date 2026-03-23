@@ -69,6 +69,7 @@ def _init_builtin_types() -> None:
         FileField,
         HiddenField,
         ListField,
+        ObjectListField,
         NumberField,
         RadioField,
         SelectField,
@@ -91,6 +92,7 @@ def _init_builtin_types() -> None:
         UrlField,
         TextareaField,
         ListField,
+        ObjectListField,
     ]:
         _register_class(cls)
 

@@ -30,6 +30,7 @@ class FieldType(str, Enum):
     HIDDEN = "hidden"
     URL = "url"
     LIST = "list"
+    OBJECT_LIST = "object-list"
 
 
 class ValidationRule(BaseModel):
@@ -279,12 +280,38 @@ class TextareaField(FormFieldBase):
 
 
 class ListField(FormFieldBase):
-    """Campo para listas de valores (ej: lista de participantes)"""
+    """Campo para listas de valores primitivos (ej: lista de participantes)."""
 
     field_type: FieldType = FieldType.LIST
     min_items: Optional[int] = None
     max_items: Optional[int] = None
     item_type: str = "text"  # Tipo de cada item en la lista
+
+
+class ObjectListField(FormFieldBase):
+    """Campo para listas de objetos homogéneos validados por subcampos."""
+
+    field_type: FieldType = FieldType.OBJECT_LIST
+    min_items: Optional[int] = None
+    max_items: Optional[int] = None
+    fields: List[Any] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_object_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "fields" in data:
+            from codeforms.registry import resolve_content_item
+
+            data = data.copy()
+            data["fields"] = [resolve_content_item(item) for item in data["fields"]]
+        return data
+
+    @model_validator(mode="after")
+    def validate_object_fields(self) -> "ObjectListField":
+        names = [field.name for field in self.fields]
+        if len(names) != len(set(names)):
+            raise ValueError(t("form.unique_field_names_in_group", title=self.label or self.name))
+        return self
 
 
 class FieldGroup(BaseModel):

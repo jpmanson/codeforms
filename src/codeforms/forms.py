@@ -191,8 +191,22 @@ class Form(BaseModel):
                             "message": t("checkbox_group.invalid_options"),
                         }
                     )
+            elif isinstance(field, ListField):
+                value, field_errors = _validate_list_field_value(field, field_value)
+                if field_errors:
+                    errors.extend(field_errors)
+                else:
+                    validated_data[field.name] = value
+            elif isinstance(field, ObjectListField):
+                value, field_errors = _validate_object_list_field_value(
+                    field, field_value
+                )
+                if field_errors:
+                    errors.extend(field_errors)
+                else:
+                    validated_data[field.name] = value
 
-            if not errors:
+            if not errors and field.name not in validated_data:
                 validated_data[field.name] = field_value
 
         return {
@@ -324,6 +338,10 @@ class FormDataModel(BaseModel):
                 fields[field.name] = (float, ... if field.required else None)
             elif isinstance(field, DateField):
                 fields[field.name] = (date, ... if field.required else None)
+            elif isinstance(field, ListField):
+                fields[field.name] = (List[Any], ... if field.required else [])
+            elif isinstance(field, ObjectListField):
+                fields[field.name] = (List[Dict[str, Any]], ... if field.required else [])
             else:
                 fields[field.name] = (str, ... if field.required else None)
 
@@ -426,6 +444,10 @@ class FormDataValidator:
                 field_type = float
             elif isinstance(field, DateField):
                 field_type = date
+            elif isinstance(field, ListField):
+                field_type = List[Any]
+            elif isinstance(field, ObjectListField):
+                field_type = List[Dict[str, Any]]
             else:
                 field_type = str
 
@@ -434,7 +456,7 @@ class FormDataValidator:
                 fields[field.name] = Field(..., description=field.help_text)
             else:
                 default_value = None
-                if field_type == List[str]:
+                if field_type in (List[str], List[Any], List[Dict[str, Any]]):
                     default_value = []
                 fields[field.name] = Field(
                     default=default_value, description=field.help_text
@@ -460,223 +482,126 @@ class FormDataValidator:
         return model
 
 
+def _make_error(field_name: str, message: str) -> dict:
+    return {"field": field_name, "message": message}
+
+
+def _validate_primitive_list_item(item_type: str, value: Any) -> tuple[Any, Optional[str]]:
+    if item_type == "number":
+        try:
+            return float(value), None
+        except (TypeError, ValueError):
+            return None, t("number.invalid")
+
+    if item_type == "email":
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", str(value)):
+            return None, t("email.invalid")
+        return str(value), None
+
+    if item_type == "url":
+        if not isinstance(value, str) or not value.startswith(("http://", "https://")):
+            return None, t("url.invalid_scheme")
+        return value, None
+
+    if item_type == "date":
+        try:
+            return date.fromisoformat(str(value)).isoformat(), None
+        except (TypeError, ValueError):
+            return None, t("date.invalid_format")
+
+    if not isinstance(value, str):
+        value = str(value)
+    return value, None
+
+
+def _validate_list_field_value(field: ListField, field_value: Any, field_path: Optional[str] = None) -> tuple[Any, List[dict]]:
+    field_name = field_path or field.name
+    if isinstance(field_value, str):
+        field_value = [field_value]
+
+    if not isinstance(field_value, list):
+        return None, [_make_error(field_name, t("select.value_must_be_list"))]
+
+    if field.min_items is not None and len(field_value) < field.min_items:
+        return None, [_make_error(field_name, f"Expected at least {field.min_items} items")]
+
+    if field.max_items is not None and len(field_value) > field.max_items:
+        return None, [_make_error(field_name, f"Expected at most {field.max_items} items")]
+
+    validated_items = []
+    errors = []
+    for index, item in enumerate(field_value):
+        validated_item, error_message = _validate_primitive_list_item(field.item_type, item)
+        if error_message:
+            errors.append(_make_error(f"{field_name}[{index}]", error_message))
+        else:
+            validated_items.append(validated_item)
+
+    return (validated_items if not errors else None), errors
+
+
+def _validate_object_list_field_value(field: ObjectListField, field_value: Any, field_path: Optional[str] = None) -> tuple[Any, List[dict]]:
+    field_name = field_path or field.name
+    if not isinstance(field_value, list):
+        return None, [_make_error(field_name, t("select.value_must_be_list"))]
+
+    if field.min_items is not None and len(field_value) < field.min_items:
+        return None, [_make_error(field_name, f"Expected at least {field.min_items} items")]
+
+    if field.max_items is not None and len(field_value) > field.max_items:
+        return None, [_make_error(field_name, f"Expected at most {field.max_items} items")]
+
+    allowed_fields = {subfield.name for subfield in field.fields}
+    validated_items = []
+    errors = []
+
+    for index, item in enumerate(field_value):
+        item_path = f"{field_name}[{index}]"
+        if not isinstance(item, dict):
+            errors.append(_make_error(item_path, "Each item must be an object"))
+            continue
+
+        extra_fields = sorted(set(item.keys()) - allowed_fields)
+        if extra_fields:
+            errors.append(_make_error(item_path, f"Unknown fields: {', '.join(extra_fields)}"))
+
+        validated_item = {}
+        item_errors = []
+        for subfield in field.fields:
+            subvalue = item.get(subfield.name)
+            validated_value, suberrors = _validate_field_value(
+                subfield,
+                subvalue,
+                item,
+                field_path=f"{item_path}.{subfield.name}",
+            )
+            if suberrors:
+                item_errors.extend(suberrors)
+            elif validated_value is not None:
+                validated_item[subfield.name] = validated_value
+
+        if item_errors:
+            errors.extend(item_errors)
+        else:
+            validated_items.append(validated_item)
+
+    return (validated_items if not errors else None), errors
+
+
 def validate_form_data(form: Form, data: Dict[str, Any]) -> Dict[str, Any]:
     try:
         validated_data = {}
         for field in form.fields:
             field_value = data.get(field.name)
-
-            # Si no hay valor, usar el valor por defecto
-            if field_value is None:
-                field_value = field.default_value
-
-            # Validar campo requerido después de considerar el valor por defecto
-            if field.required and field_value is None:
+            value, errors = _validate_field_value(field, field_value, data)
+            if errors:
                 return {
                     "success": False,
-                    "errors": [
-                        {
-                            "field": field.name,
-                            "message": t("field.required_named", name=field.name),
-                        }
-                    ],
+                    "errors": errors,
                     "message": t("form.data_validation_error"),
                 }
-
-            # Procesar valores específicos por tipo
-            if field_value is not None:
-                # Select validation (debe ir antes de otros tipos)
-                if field.field_type == FieldType.SELECT:
-                    valid_options = [opt.value for opt in field.options]
-                    if field.multiple:
-                        # Asegurar que field_value sea una lista
-                        if isinstance(field_value, str):
-                            field_value = [field_value]
-                        if not isinstance(field_value, list):
-                            return {
-                                "success": False,
-                                "errors": [
-                                    {
-                                        "field": field.name,
-                                        "message": t("select.value_must_be_list"),
-                                    }
-                                ],
-                                "message": t("form.data_validation_error"),
-                            }
-                        # Validar cada valor en la lista
-                        invalid_values = [
-                            v for v in field_value if v not in valid_options
-                        ]
-                        if invalid_values:
-                            return {
-                                "success": False,
-                                "errors": [
-                                    {
-                                        "field": field.name,
-                                        "message": t(
-                                            "select.invalid_values",
-                                            values=str(invalid_values),
-                                        ),
-                                    }
-                                ],
-                                "message": t("form.data_validation_error"),
-                            }
-                    else:
-                        # Validar valor único
-                        if field_value not in valid_options:
-                            return {
-                                "success": False,
-                                "errors": [
-                                    {
-                                        "field": field.name,
-                                        "message": t(
-                                            "select.invalid_option_value",
-                                            value=field_value,
-                                            valid=str(valid_options),
-                                        ),
-                                    }
-                                ],
-                                "message": t("form.data_validation_error"),
-                            }
-                    validated_data[field.name] = field_value
-
-                # Email validation
-                elif field.field_type == FieldType.EMAIL:
-                    try:
-                        if not re.match(r"[^@]+@[^@]+\.[^@]+", field_value):
-                            raise ValueError("Invalid email format")
-                        validated_data[field.name] = field_value
-                    except ValueError:
-                        return {
-                            "success": False,
-                            "errors": [
-                                {"field": field.name, "message": t("email.invalid")}
-                            ],
-                            "message": t("form.data_validation_error"),
-                        }
-
-                # Checkbox group validation
-                elif field.field_type == FieldType.CHECKBOX and hasattr(
-                    field, "options"
-                ):
-                    valid_options = [opt.value for opt in field.options]
-
-                    # Ensure field_value is a list
-                    if isinstance(field_value, str):
-                        field_value = [field_value]
-
-                    if not isinstance(field_value, list):
-                        return {
-                            "success": False,
-                            "errors": [
-                                {
-                                    "field": field.name,
-                                    "message": t("select.value_must_be_list"),
-                                }
-                            ],
-                            "message": t("form.data_validation_error"),
-                        }
-
-                    # Check if all values are valid options
-                    invalid_values = [v for v in field_value if v not in valid_options]
-                    if invalid_values:
-                        return {
-                            "success": False,
-                            "errors": [
-                                {
-                                    "field": field.name,
-                                    "message": t(
-                                        "select.invalid_values",
-                                        values=str(invalid_values),
-                                    ),
-                                }
-                            ],
-                            "message": t("form.data_validation_error"),
-                        }
-                    validated_data[field.name] = field_value
-
-                # Single checkbox validation
-                elif field.field_type == FieldType.CHECKBOX and not hasattr(
-                    field, "options"
-                ):
-                    # Convertir a booleano si es necesario
-                    validated_data[field.name] = bool(field_value)
-
-                # Radio validation
-                elif field.field_type == FieldType.RADIO:
-                    valid_options = [opt.value for opt in field.options]
-                    if field_value not in valid_options:
-                        return {
-                            "success": False,
-                            "errors": [
-                                {
-                                    "field": field.name,
-                                    "message": t("radio.invalid_option"),
-                                }
-                            ],
-                            "message": t("form.data_validation_error"),
-                        }
-                    validated_data[field.name] = field_value
-
-                # Number validation
-                elif field.field_type == FieldType.NUMBER:
-                    try:
-                        num_value = float(field_value)
-                        if hasattr(field, "min_value") and field.min_value is not None:
-                            if num_value < field.min_value:
-                                raise ValueError(
-                                    t("number.min_value", min=field.min_value)
-                                )
-                        if hasattr(field, "max_value") and field.max_value is not None:
-                            if num_value > field.max_value:
-                                raise ValueError(
-                                    t("number.max_value", max=field.max_value)
-                                )
-                        validated_data[field.name] = num_value
-                    except ValueError as e:
-                        return {
-                            "success": False,
-                            "errors": [{"field": field.name, "message": str(e)}],
-                            "message": t("form.data_validation_error"),
-                        }
-
-                # Text validation
-                elif field.field_type == FieldType.TEXT:
-                    if not isinstance(field_value, str):
-                        field_value = str(field_value)
-                    if hasattr(field, "minlength") and field.minlength is not None:
-                        if len(field_value) < field.minlength:
-                            return {
-                                "success": False,
-                                "errors": [
-                                    {
-                                        "field": field.name,
-                                        "message": t(
-                                            "text.minlength", min=field.minlength
-                                        ),
-                                    }
-                                ],
-                                "message": t("form.data_validation_error"),
-                            }
-                    if hasattr(field, "maxlength") and field.maxlength is not None:
-                        if len(field_value) > field.maxlength:
-                            return {
-                                "success": False,
-                                "errors": [
-                                    {
-                                        "field": field.name,
-                                        "message": t(
-                                            "text.maxlength", max=field.maxlength
-                                        ),
-                                    }
-                                ],
-                                "message": t("form.data_validation_error"),
-                            }
-                    validated_data[field.name] = field_value
-
-                # Default validation for other types
-                else:
-                    validated_data[field.name] = field_value
+            if value is not None:
+                validated_data[field.name] = value
 
         return {
             "success": True,
@@ -740,26 +665,25 @@ def evaluate_visibility(field: FormFieldBase, data: Dict[str, Any]) -> bool:
 
 
 def _validate_field_value(
-    field: FormFieldBase, field_value: Any, data: Dict[str, Any]
-) -> tuple:
+    field: FormFieldBase, field_value: Any, data: Dict[str, Any], field_path: Optional[str] = None
+) -> tuple[Any, List[dict]]:
     """Valida un campo individual y retorna (validated_value, error_dict_or_None).
 
     Lógica de validación compartida entre validate_form_data y
     validate_form_data_dynamic. No modifica la función legacy.
     """
+    field_name = field_path or field.name
+
     # Si no hay valor, usar el valor por defecto
     if field_value is None:
         field_value = field.default_value
 
     # Validar campo requerido
     if field.required and field_value is None:
-        return None, {
-            "field": field.name,
-            "message": t("field.required_named", name=field.name),
-        }
+        return None, [_make_error(field_name, t("field.required_named", name=field.name))]
 
     if field_value is None:
-        return field_value, None
+        return field_value, []
 
     # Select validation
     if field.field_type == FieldType.SELECT:
@@ -768,33 +692,32 @@ def _validate_field_value(
             if isinstance(field_value, str):
                 field_value = [field_value]
             if not isinstance(field_value, list):
-                return None, {
-                    "field": field.name,
-                    "message": t("select.value_must_be_list"),
-                }
+                return None, [_make_error(field_name, t("select.value_must_be_list"))]
             invalid_values = [v for v in field_value if v not in valid_options]
             if invalid_values:
-                return None, {
-                    "field": field.name,
-                    "message": t("select.invalid_values", values=str(invalid_values)),
-                }
+                return None, [_make_error(field_name, t("select.invalid_values", values=str(invalid_values)))]
         else:
             if field_value not in valid_options:
-                return None, {
-                    "field": field.name,
-                    "message": t(
+                return None, [_make_error(field_name, t(
                         "select.invalid_option_value",
                         value=field_value,
                         valid=str(valid_options),
-                    ),
-                }
-        return field_value, None
+                    ))]
+        return field_value, []
+
+    # Primitive list validation
+    if field.field_type == FieldType.LIST:
+        return _validate_list_field_value(field, field_value, field_name)
+
+    # Object list validation
+    if field.field_type == FieldType.OBJECT_LIST:
+        return _validate_object_list_field_value(field, field_value, field_name)
 
     # Email validation
     if field.field_type == FieldType.EMAIL:
         if not re.match(r"[^@]+@[^@]+\.[^@]+", str(field_value)):
-            return None, {"field": field.name, "message": t("email.invalid")}
-        return field_value, None
+            return None, [_make_error(field_name, t("email.invalid"))]
+        return field_value, []
 
     # Checkbox group validation
     if field.field_type == FieldType.CHECKBOX and hasattr(field, "options"):
@@ -802,17 +725,11 @@ def _validate_field_value(
         if isinstance(field_value, str):
             field_value = [field_value]
         if not isinstance(field_value, list):
-            return None, {
-                "field": field.name,
-                "message": t("select.value_must_be_list"),
-            }
+            return None, [_make_error(field_name, t("select.value_must_be_list"))]
         invalid_values = [v for v in field_value if v not in valid_options]
         if invalid_values:
-            return None, {
-                "field": field.name,
-                "message": t("select.invalid_values", values=str(invalid_values)),
-            }
-        return field_value, None
+            return None, [_make_error(field_name, t("select.invalid_values", values=str(invalid_values)))]
+        return field_value, []
 
     # Single checkbox validation
     if field.field_type == FieldType.CHECKBOX and not hasattr(field, "options"):
@@ -822,8 +739,8 @@ def _validate_field_value(
     if field.field_type == FieldType.RADIO:
         valid_options = [opt.value for opt in field.options]
         if field_value not in valid_options:
-            return None, {"field": field.name, "message": t("radio.invalid_option")}
-        return field_value, None
+            return None, [_make_error(field_name, t("radio.invalid_option"))]
+        return field_value, []
 
     # Number validation
     if field.field_type == FieldType.NUMBER:
@@ -831,19 +748,13 @@ def _validate_field_value(
             num_value = float(field_value)
             if hasattr(field, "min_value") and field.min_value is not None:
                 if num_value < field.min_value:
-                    return None, {
-                        "field": field.name,
-                        "message": t("number.min_value", min=field.min_value),
-                    }
+                    return None, [_make_error(field_name, t("number.min_value", min=field.min_value))]
             if hasattr(field, "max_value") and field.max_value is not None:
                 if num_value > field.max_value:
-                    return None, {
-                        "field": field.name,
-                        "message": t("number.max_value", max=field.max_value),
-                    }
+                    return None, [_make_error(field_name, t("number.max_value", max=field.max_value))]
             return num_value, None
         except (ValueError, TypeError):
-            return None, {"field": field.name, "message": t("number.invalid")}
+            return None, [_make_error(field_name, t("number.invalid"))]
 
     # Text validation
     if field.field_type == FieldType.TEXT:
@@ -851,20 +762,14 @@ def _validate_field_value(
             field_value = str(field_value)
         if hasattr(field, "minlength") and field.minlength is not None:
             if len(field_value) < field.minlength:
-                return None, {
-                    "field": field.name,
-                    "message": t("text.minlength", min=field.minlength),
-                }
+                return None, [_make_error(field_name, t("text.minlength", min=field.minlength))]
         if hasattr(field, "maxlength") and field.maxlength is not None:
             if len(field_value) > field.maxlength:
-                return None, {
-                    "field": field.name,
-                    "message": t("text.maxlength", max=field.maxlength),
-                }
-        return field_value, None
+                return None, [_make_error(field_name, t("text.maxlength", max=field.maxlength))]
+        return field_value, []
 
     # Default: pasar el valor sin validación adicional
-    return field_value, None
+    return field_value, []
 
 
 def validate_form_data_dynamic(
@@ -923,10 +828,10 @@ def validate_form_data_dynamic(
                 continue  # Campo oculto, no validar
 
             field_value = data.get(field.name)
-            value, error = _validate_field_value(field, field_value, data)
+            value, field_errors = _validate_field_value(field, field_value, data)
 
-            if error:
-                errors.append(error)
+            if field_errors:
+                errors.extend(field_errors)
             elif value is not None:
                 validated_data[field.name] = value
 

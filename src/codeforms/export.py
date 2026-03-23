@@ -12,6 +12,7 @@ from codeforms.fields import (
     FormStep,
     HiddenField,
     ListField,
+    ObjectListField,
     NumberField,
     RadioField,
     SelectField,
@@ -485,6 +486,26 @@ _LIST_ITEM_TYPE_MAP: Dict[str, str] = {
 }
 
 
+def _object_list_item_schema(field: ObjectListField) -> Dict[str, Any]:
+    properties: Dict[str, Any] = {}
+    required = []
+
+    for subfield in field.fields:
+        properties[subfield.name] = _field_to_json_schema_property(subfield)
+        if subfield.required:
+            required.append(subfield.name)
+
+    item_schema: Dict[str, Any] = {
+        "type": "object",
+        "properties": properties,
+        "additionalProperties": False,
+    }
+    if required:
+        item_schema["required"] = required
+
+    return item_schema
+
+
 def _field_to_json_schema_property(field: FormFieldBase) -> Dict[str, Any]:
     """Convert a single form field to a JSON Schema property definition."""
     prop: Dict[str, Any] = {}
@@ -565,6 +586,14 @@ def _field_to_json_schema_property(field: FormFieldBase) -> Dict[str, Any]:
         item_type = _LIST_ITEM_TYPE_MAP.get(field.item_type, "string")
         prop["type"] = "array"
         prop["items"] = {"type": item_type}
+        if field.min_items is not None:
+            prop["minItems"] = field.min_items
+        if field.max_items is not None:
+            prop["maxItems"] = field.max_items
+
+    elif isinstance(field, ObjectListField):
+        prop["type"] = "array"
+        prop["items"] = _object_list_item_schema(field)
         if field.min_items is not None:
             prop["minItems"] = field.min_items
         if field.max_items is not None:

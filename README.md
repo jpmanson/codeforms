@@ -87,6 +87,69 @@ All fields inherit from `FormFieldBase` and share these common attributes:
   - `accept`: Accepted file types (e.g. `"image/*,.pdf"`).
   - `multiple`: Allow multiple file uploads.
 - **`HiddenField`** — Hidden field (`<input type="hidden">`).
+- **`ListField`** — Array of primitive values.
+  - `item_type`: Primitive type for each item (`text`, `number`, `email`, `url`, `date`).
+  - `min_items`, `max_items`: List size limits.
+- **`ObjectListField`** — Array of homogeneous objects validated against nested subfields.
+  - `fields`: List of subfields that define each object shape.
+  - `min_items`, `max_items`: List size limits.
+
+### `ObjectListField`
+
+Use `ObjectListField` when a form needs a repeatable list of structured rows, such as parallel approvers, attendees with roles, or line items.
+
+```python
+from codeforms import Form, ObjectListField, TextField, CheckboxField
+
+form = Form(
+    name="parallel_approvers",
+    fields=[
+        ObjectListField(
+            name="parallel_approvals",
+            label="Aprobadores",
+            required=True,
+            min_items=1,
+            max_items=5,
+            fields=[
+                TextField(name="approver_email", label="Email", required=True),
+                TextField(name="label", label="Etiqueta", required=True),
+                CheckboxField(name="required", label="Obligatorio"),
+            ],
+        )
+    ],
+)
+```
+
+Expected submitted value:
+
+```json
+{
+  "parallel_approvals": [
+    {
+      "approver_email": "ana@empresa.com",
+      "label": "Compras",
+      "required": true
+    },
+    {
+      "approver_email": "luis@empresa.com",
+      "label": "Finanzas"
+    }
+  ]
+}
+```
+
+Validation behavior:
+
+- The top-level field must be a JSON array.
+- Each item must be a JSON object.
+- Unknown keys inside items are rejected.
+- Required nested subfields are enforced.
+- Validation errors include nested paths like `parallel_approvals[0].label`.
+
+Current limitation:
+
+- `ObjectListField` is fully supported in backend validation and JSON Schema export.
+- Rich repeatable HTML UI generation is not implemented yet. If you need an interactive editor, prefer consuming the exported `json_schema` from your frontend.
 
 ## Data Validation
 
@@ -271,8 +334,37 @@ Output:
 | `UrlField` | `string` (`format: "uri"`) | `minLength`, `maxLength` |
 | `TextareaField` | `string` | `minLength`, `maxLength` |
 | `ListField` | `array` | `minItems`, `maxItems` |
+| `ObjectListField` | `array` of `object` | nested `properties`, nested `required`, `minItems`, `maxItems` |
 
 Field annotations like `label`, `help_text`, `default_value`, and `readonly` map to the JSON Schema keywords `title`, `description`, `default`, and `readOnly` respectively.
+
+Example `ObjectListField` schema:
+
+```json
+{
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "properties": {
+      "approver_email": {
+        "type": "string",
+        "title": "Email"
+      },
+      "label": {
+        "type": "string",
+        "title": "Etiqueta"
+      },
+      "required": {
+        "type": "boolean",
+        "title": "Obligatorio"
+      }
+    },
+    "required": ["approver_email", "label"],
+    "additionalProperties": false
+  }
+}
+```
 
 Fields inside `FieldGroup` and `FormStep` containers are flattened into the top-level `properties` automatically.
 

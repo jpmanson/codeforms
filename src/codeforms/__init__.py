@@ -12,6 +12,7 @@ from codeforms.fields import (
     FormStep,
     HiddenField,
     ListField,
+    ObjectListField,
     NumberField,
     RadioField,
     SelectField,
@@ -63,6 +64,7 @@ __all__ = [
     "UrlField",
     "TextareaField",
     "ListField",
+    "ObjectListField",
     "FieldGroup",
     "FormStep",
     # Form
